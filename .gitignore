@@ -1,0 +1,7 @@
+build/
+debug/
+release/
+*.user
+*.pro.user
+*.o
+*.obj
