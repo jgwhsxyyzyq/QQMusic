@@ -1,5 +1,6 @@
 QT += widgets
 QT += core gui widgets
+QT += core gui multimedia
 CONFIG += c++17
 
 # You can make your code fail to compile if it uses deprecated APIs.
@@ -12,6 +13,8 @@ SOURCES += \
     commonpage.cpp \
     listitembox.cpp \
     main.cpp \
+    music.cpp \
+    musiclist.cpp \
     musicslide.cpp \
     recbox.cpp \
     volumetool.cpp \
@@ -22,6 +25,8 @@ HEADERS += \
     btform.h \
     commonpage.h \
     listitembox.h \
+    music.h \
+    musiclist.h \
     musicslide.h \
     recbox.h \
     volumetool.h \

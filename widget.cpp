@@ -2,6 +2,10 @@
 #include "ui_widget.h"
 #include<QDebug>
 #include "volumetool.h"
+#include <QDir>
+ #include <QFileDialog>
+#include<QStandardPaths>
+#include<QUrl>
 Widget::Widget(QWidget *parent)
     : QWidget(parent)
     , ui(new Ui::Widget)
@@ -58,6 +62,14 @@ void Widget::initUI()
     ui->recentPage->setCommonPageUI("最近播放，" ,":/images/recentbg.png");
 
     volumeTool = new VolumeTool(this);
+    //设置commonpage的信息
+    ui->likePage->setMusicListType(PageType::LIKE_PAGE);
+    ui->likePage->setCommonPageUI("我喜欢", ":/images/ilikebg.png");
+    ui->localPage->setMusicListType(PageType::LOCAL_PAGE);
+    ui->localPage->setCommonPageUI("本地音乐",":/images/localbg.png");
+    ui->recentPage->setMusicListType(PageType::HISTORY_PAGE);
+    ui->recentPage->setCommonPageUI("最近播放",":/images/recentbg.png");
+
 
 }
 QJsonArray Widget::randomPiction()
@@ -177,5 +189,66 @@ void Widget::on_volume_clicked()
 
 
          volumeTool->show();
+}
+
+
+void Widget::on_addLocal_clicked()
+{
+    //创建文件对话框
+    QFileDialog fileDialog(this);
+    fileDialog.setWindowTitle("添加本地音乐");
+    //创建打开格式的文件文件
+    fileDialog.setAcceptMode(QFileDialog::AcceptOpen);
+    //设置对话框
+    //设置只能选择文件，可以选择多个文件
+    fileDialog.setFileMode(QFileDialog::ExistingFiles);
+    //设置音乐过滤器
+    fileDialog.setNameFilters({
+        tr("音乐文件 (*.mp3 *.wav *.flac *.m4a *.aac *.ogg)"),
+        tr("所有文件 (*.*)")
+    });
+
+    //设置对话框的打开路径
+    QDir dir(QDir::currentPath());
+    dir.cdUp();
+    QString musicPath =
+        "C:/Users/18074/Desktop/qtcode/QtQQMusic/musics";
+    fileDialog.setDirectory(musicPath);
+
+    //设置模态对话框
+    if(fileDialog.exec()!=QFileDialog::Accepted)
+    {
+        ui->stackedWidget->setCurrentIndex(4);
+        QList<QUrl> urls = fileDialog.selectedUrls();
+        musicList.addMusicByUrl(urls);
+        ui->localPage->reFresh(musicList);
+    }
+    //获取所以选中的本地文件
+    const QStringList files=fileDialog.selectedFiles();
+    if(files.empty())
+    {
+        return;
+    }
+    //切换本地音乐
+    ui->stackedWidget->setCurrentIndex(4);
+    for(const QString &filePath:files)
+    {
+        QFileInfo fileInfo(filePath);
+        if(fileInfo.exists()||fileInfo.isFile())
+        {
+            ui->stackedWidget->setCurrentIndex(4);
+            QList<QUrl> urls = fileDialog.selectedUrls();
+            musicList.addMusicByUrl(urls);
+            ui->localPage->reFresh(musicList);
+        }
+
+        QString musicName=fileInfo.completeBaseName();
+
+
+        qDebug() << "歌曲名称：" << musicName;
+        qDebug() << "歌曲路径：" << filePath;
+    }
+
+
 }
 

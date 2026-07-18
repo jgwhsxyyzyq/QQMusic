@@ -1,6 +1,6 @@
 #ifndef WIDGET_H
 #define WIDGET_H
-
+#include "musiclist.h"
 #include <QWidget>
 #include <QMouseEvent>
 #include <QPoint>
@@ -40,8 +40,11 @@ private slots:
 
     void on_volume_clicked();
 
+    void on_addLocal_clicked();
+
 private:
     Ui::Widget *ui;
     QPoint dragPosition;
+    MusicList musicList;
 };
 #endif // WIDGET_H

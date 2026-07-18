@@ -1,6 +1,8 @@
 build/
 debug/
 release/
+.qtcreator/
+musics/
 *.user
 *.pro.user
 *.o
