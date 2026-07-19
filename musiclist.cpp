@@ -10,6 +10,12 @@ void MusicList::addMusicByUrl(const QList<QUrl> &urls)
     QMimeDatabase database;
 
     for (const QUrl &musicUrl : urls) {
+        //同一个本地文件只允许添加一次
+        if(containsMusicUrl(musicUrl))
+        {
+            continue;
+        }
+
         QMimeType mime =
             database.mimeTypeForFile(musicUrl.toLocalFile());
 
@@ -20,6 +26,19 @@ void MusicList::addMusicByUrl(const QList<QUrl> &urls)
 
         musicList.push_back(Music(musicUrl));
     }
+}
+
+bool MusicList::containsMusicUrl(const QUrl &musicUrl)
+{
+    for(Music &music : musicList)
+    {
+        if(music.getMusicUrl()==musicUrl)
+        {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 

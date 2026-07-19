@@ -22,9 +22,16 @@ public:
 protected:
      void enterEvent(QEvent *event);
      void leaveEvent(QEvent *event);
+     void setLikeMusic(bool isLike);
+     void onLikeBtnClicked();
+     signals:
+     void setIsLike(bool);
+
+
 private:
     Ui::ListItemBox *ui;
     bool isLike;
+
 };
 
 #endif // LISTITEMBOX_H

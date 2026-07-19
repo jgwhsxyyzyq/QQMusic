@@ -2,7 +2,7 @@
 #define COMMONPAGE_H
 #include "musiclist.h"
 #include <QWidget>
-
+#include <QMediaPlaylist>
 namespace Ui {
 class CommonPage;
 }
@@ -25,9 +25,14 @@ public:
     void setCommonPageUI(const QString &text, const QString &imagePath);
     void setMusicListType(PageType pageType);
     void reFresh(MusicList& musicList);
+    //将歌曲加入播放的媒体列表
+    void addMusicToPlayer(MusicList &musicList, QMediaPlaylist *playList);
 
 private:
     void addMusicToMusicPage(MusicList &musicList);
+
+signals:
+    void updateLikeMusic(bool isLike,QString musicId);
 
 private:
     Ui::CommonPage *ui;

@@ -7,6 +7,7 @@ ListItemBox::ListItemBox(QWidget *parent)
     ,isLike(false)
 {
     ui->setupUi(this);
+    connect(ui->likeBtn,&QPushButton::clicked,this,&ListItemBox::onLikeBtnClicked);
 }
 
 ListItemBox::~ListItemBox()
@@ -52,4 +53,24 @@ void ListItemBox::leaveEvent(QEvent *event)
 {
     (void)event;
      setStyleSheet("");
+}
+
+void ListItemBox::setLikeMusic(bool isLike)
+{
+    this->isLike=isLike;
+    if(isLike)
+    {
+        ui->likeBtn->setIcon(QIcon(":/images/like_2.png"));
+
+    }
+    else{
+        ui->likeBtn->setIcon(QIcon(":/images/like_3.png"));
+    }
+}
+
+void ListItemBox::onLikeBtnClicked()
+{
+    isLike=!isLike;
+    setIsLike(isLike);
+    emit setIsLike(isLike);
 }

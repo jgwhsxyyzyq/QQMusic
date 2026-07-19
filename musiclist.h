@@ -18,6 +18,7 @@ public:
 
 
 private:
+    bool containsMusicUrl(const QUrl& musicUrl);
     QVector<Music> musicList;
 };
 

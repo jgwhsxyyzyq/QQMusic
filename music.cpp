@@ -1,5 +1,5 @@
 #include "music.h"
-#include "qfontinfo.h"
+#include <QFileInfo>
 
 Music::Music(const QUrl &url)
 : isLike(false)
@@ -99,24 +99,42 @@ void Music::parseMediaMetaData()
     QMediaPlayer  player;
     //加载媒体文件
     player.setMedia(QMediaContent(musicUrl));
-    while (player.isMetaDataAvailable())
+    while (!player.isMetaDataAvailable())
     {
         QCoreApplication::processEvents();
     }
-    if(!player.isMetaDataAvailable())
+    if(player.isMetaDataAvailable())
     {
         musicName=player.metaData("Title").toString();
         singerName=player.metaData("Author").toString();
         albumName=player.metaData("AlbumTitle").toString();
-        duration=player.duration();
+        duration=player.metaData("Duration").toLongLong();
 
+        //使用不带扩展名的文件名作为元数据缺失时的备用信息。
+        const QFileInfo fileInfo(musicUrl.toLocalFile());
+        const QString fileName=fileInfo.completeBaseName();
+        const QString separator=" - ";
+        const int index=fileName.indexOf(separator);
         if(musicName.isEmpty())
         {
-            musicName="未知歌曲";
+            if(index!=-1)
+            {
+                musicName=fileName.left(index).trimmed();
+            }
+            else{
+                musicName=fileName.trimmed();
+            }
         }
         if(singerName.isEmpty())
         {
-            singerName="未知歌手";
+            if (index != -1)
+            {
+                singerName=fileName.mid(index+separator.size()).trimmed();
+            }
+            else
+            {
+                singerName = QStringLiteral("未知歌手");
+            }
         }
         if(albumName.isEmpty())
         {
