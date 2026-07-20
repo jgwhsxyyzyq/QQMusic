@@ -9,7 +9,7 @@
 #include <QMediaPlaylist>
 #include <QJsonArray>
 #include <QMediaPlayer>
-
+#include "commonpage.h"
 QT_BEGIN_NAMESPACE
 namespace Ui {
 class Widget;
@@ -34,6 +34,28 @@ public:
     void onPlaybackModeCliked();
     // 播放模式切换槽函数
     void onPlaybackModeChanged(QMediaPlaylist::PlaybackMode playbackMode);
+
+    //播放所有的槽函数
+    void onPlayAll(PageType pageType);
+    void playAllOfCommonpage(CommonPage *commonpage ,int index);
+    // CommonPage中playMusicByIndex信号对应槽函数
+    void playMusicByIndex(CommonPage* page, int index);
+    // 支持播放历史记录
+    void onCurrentIndexChanged(int index);
+
+    // 当前歌曲的媒体元数据解析完成后更新歌曲信息和封面。
+    void onMetaDataAvailableChanged(bool available);
+
+    //设置静音状态
+    void setMusicSilence(bool isMuted);
+
+    void setPlayerVolume(int vomume); // 设置音量大小
+
+    // 歌曲持续时长改变时[歌曲切换]
+    void onDurationChanged(qint64 duration);
+
+    // 播放位置改变，即持续播放时间改变
+    void onPositionChanged(qint64 duration);
 protected:
     void mousePressEvent(QMouseEvent*event)override;
      void mouseMoveEvent(QMouseEvent*event)override;
@@ -55,6 +77,8 @@ private slots:
 
 
 private:
+    void setCurrentMusicCover(const QPixmap &pixmap);
+
     Ui::Widget *ui;
     QPoint dragPosition;
     MusicList musicList;
@@ -64,6 +88,7 @@ private:
     QMediaPlaylist* playList;
     QString currentMusicId;
 
+    CommonPage*curpage;
 
 
 };

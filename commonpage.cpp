@@ -7,7 +7,13 @@ CommonPage::CommonPage(QWidget *parent)
 {
     ui->setupUi(this);
     ui->pageMusicList->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-
+    connect(ui->playAllBtn,&QPushButton::clicked,this,[=](){
+        emit(playAll(pageType));
+    });
+    // 鼠标标双击后，发射信号告诉Widget，博能放this页面中共被双击的歌曲
+    connect(ui->pageMusicList,&QListWidget::doubleClicked,this,[=](const QModelIndex & index){
+        emit playMusicByIndex(this,index.row());
+    });
 }
 
 CommonPage::~CommonPage()
@@ -20,10 +26,8 @@ void CommonPage::setCommonPageUI(const QString &text, const QString &imagePath)
 {
     //设置文本
     ui->pageTittle->setText(text);
-    //设置推荐页面
-    ui->musicImageLabel->setPixmap(imagePath);
-    //设置缩放
-    ui->musicImageLabel->setScaledContents(true);
+    //设置推荐页面，并保持图片原始宽高比。
+    setImageLabel(QPixmap(imagePath));
 }
 
 void CommonPage::setMusicListType(PageType pageType)
@@ -105,6 +109,26 @@ void CommonPage::addMusicToPlayer(MusicList &musicList, QMediaPlaylist *playList
             break;
         }
     }
+}
+
+QString CommonPage::getMusicIdByIndex(int index) const
+{
+    if(index<0 || index>=musicListOfPage.size())
+    {
+        qDebug()<<"没有该歌曲";
+        return QString();
+    }
+    return  musicListOfPage.at(index);
+}
+
+void CommonPage::setImageLabel(const QPixmap &pixmap)
+{
+    ui->musicImageLabel->setScaledContents(false);
+    ui->musicImageLabel->setAlignment(Qt::AlignCenter);
+    ui->musicImageLabel->setPixmap(
+        pixmap.scaled(ui->musicImageLabel->size(),
+                      Qt::KeepAspectRatio,
+                      Qt::SmoothTransformation));
 }
 
 void CommonPage::addMusicToMusicPage(MusicList &musicList)

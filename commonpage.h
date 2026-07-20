@@ -3,6 +3,7 @@
 #include "musiclist.h"
 #include <QWidget>
 #include <QMediaPlaylist>
+#include <QPixmap>
 namespace Ui {
 class CommonPage;
 }
@@ -28,11 +29,20 @@ public:
     //将歌曲加入播放的媒体列表
     void addMusicToPlayer(MusicList &musicList, QMediaPlaylist *playList);
 
+    //根据歌曲在列表中的索引获取歌曲 ID”
+    QString getMusicIdByIndex(int index) const;
+
+    // 设置当前页面顶部显示的歌曲封面。
+    void setImageLabel(const QPixmap &pixmap);
+
 private:
     void addMusicToMusicPage(MusicList &musicList);
 
 signals:
     void updateLikeMusic(bool isLike,QString musicId);
+    void playAll(PageType pageType);
+
+    void playMusicByIndex(CommonPage*, int);
 
 private:
     Ui::CommonPage *ui;

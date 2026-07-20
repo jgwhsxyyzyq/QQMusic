@@ -7,6 +7,10 @@
 #include<QStandardPaths>
 #include<QUrl>
 #include <QMediaPlayer>
+#include <QMediaMetaData>
+#include <QImage>
+#include <QPixmap>
+
 Widget::Widget(QWidget *parent)
     : QWidget(parent)
     , ui(new Ui::Widget)
@@ -54,6 +58,7 @@ void Widget::initUI()
     //设置默认选中本地下载
     ui->local->animalShow();
     ui->stackedWidget->setCurrentIndex(4);
+    curpage = ui->localPage;
 
     srand(time(NULL));
     ui->recMusicBox->initRecBoxUi(randomPiction(),1);
@@ -67,6 +72,12 @@ void Widget::initUI()
     ui->localPage->setCommonPageUI("本地音乐",":/images/localbg.png");
     ui->recentPage->setMusicListType(PageType::HISTORY_PAGE);
     ui->recentPage->setCommonPageUI("最近播放",":/images/recentbg.png");
+
+    // 底部封面使用固定尺寸，防止大尺寸内嵌图片把控制区布局撑开。
+    ui->gridLayout->setContentsMargins(5,5,5,5);
+    ui->musicCover->setFixedSize(50,50);
+    ui->musicCover->setAlignment(Qt::AlignCenter);
+    setCurrentMusicCover(QPixmap(":/images/default_cover.png"));
 
     // 播放控制区按钮图标设定
     ui->play->setIcon(QIcon(":/images/play_2.png"));
@@ -103,8 +114,17 @@ QVector<QString> vecImageName;
 
          }
 
-     return objArray;
+    return objArray;
      }
+
+void Widget::setCurrentMusicCover(const QPixmap &pixmap)
+{
+    ui->musicCover->setScaledContents(false);
+    ui->musicCover->setPixmap(
+        pixmap.scaled(ui->musicCover->size(),
+                      Qt::KeepAspectRatio,
+                      Qt::SmoothTransformation));
+}
 
 
 
@@ -164,6 +184,22 @@ void Widget::connectSignalAdnSlot()//关联信号槽
     connect(ui->playDown, &QPushButton::clicked, this, &Widget::onPlayDownCliked);
     // 播放列表的模式放改变时的信号槽关联
     connect(playList, &QMediaPlaylist::playbackModeChanged, this, &Widget::onPlaybackModeChanged);
+
+    //关联播放所有的信号和槽函数
+    connect(ui->likePage,&CommonPage::playAll,this,&Widget::onPlayAll);
+     connect(ui->localPage,&CommonPage::playAll,this,&Widget::onPlayAll);
+     connect(ui->recentPage,&CommonPage::playAll,this,&Widget::onPlayAll);
+
+     //处理likePage、localPage、recentPage中ListItemBox双击
+     connect(ui->likePage,&CommonPage::playMusicByIndex,this,&Widget::playMusicByIndex);
+      connect(ui->localPage,&CommonPage::playMusicByIndex,this,&Widget::playMusicByIndex);
+      connect(ui->recentPage,&CommonPage::playMusicByIndex,this,&Widget::playMusicByIndex);
+
+      // 设置静音槽函数
+      connect(volumeTool,&VolumeTool::setSilence,this,&Widget::setMusicSilence);
+
+      //设置音量大小
+      connect(volumeTool,&VolumeTool::setMusicVolume,this,&Widget::setPlayerVolume);
 }
 
 void Widget::initPlayer()
@@ -182,6 +218,35 @@ void Widget::initPlayer()
     // QMediaPlayer信号和槽函数关联
     // 播放状态改变时：暂停和播放之间切换
     connect(player, &QMediaPlayer::stateChanged, this,&Widget::onPlayStateChanged);
+
+    // 播放列表切换歌曲时，更新当前歌曲ID和播放历史。
+    connect(playList,&QMediaPlaylist::currentIndexChanged,
+            this,&Widget::onCurrentIndexChanged);
+
+    // 新歌曲的元数据解析完成后，更新歌曲名称、歌手和封面。
+    connect(player,&QMediaPlayer::metaDataAvailableChanged,
+            this,&Widget::onMetaDataAvailableChanged);
+
+    // 播放器位置变化时，自动更新底部播放进度条。
+    connect(player,&QMediaPlayer::positionChanged,this,[this](qint64 position)
+            {
+        ui->processBar->setProgress(position,player->duration());
+    });
+
+    // 切换歌曲或媒体加载完成时，使用新的总时长刷新进度条。
+    connect(player,&QMediaPlayer::durationChanged,this,[this](qint64 duration)
+            {
+        ui->processBar->setProgress(player->position(),duration);
+    });
+
+    // 用户拖动完成后，将播放器跳转到对应位置。
+    connect(ui->processBar,&MusicSlide::seekRequested,this,[this](double ratio)
+            {
+        if(player->duration()>0)
+        {
+            player->setPosition(qRound64(player->duration()*ratio));
+        }
+    });
 
     connect(ui->playMode, &QPushButton::clicked, this, &Widget::onPlaybackModeCliked);
 }
@@ -315,11 +380,44 @@ void Widget::onPlayStateChanged()
 
 void Widget::onPlayUpCliked()
 {
+    if(playList->mediaCount()==0)
+    {
+        return;
+    }
+
+    // 单曲循环会让previous()仍然停留在当前歌曲，
+    // 因此手动计算上一首歌曲的索引。
+    if(playList->playbackMode()==QMediaPlaylist::CurrentItemInLoop)
+    {
+        const int currentIndex=playList->currentIndex();
+        const int previousIndex=currentIndex<=0
+                                    ? playList->mediaCount()-1
+                                    : currentIndex-1;
+        playList->setCurrentIndex(previousIndex);
+        return;
+    }
+
     playList->previous();
 }
 
 void Widget::onPlayDownCliked()
 {
+    if(playList->mediaCount()==0)
+    {
+        return;
+    }
+
+    // 单曲循环状态下仍允许用户手动选择下一首歌曲。
+    if(playList->playbackMode()==QMediaPlaylist::CurrentItemInLoop)
+    {
+        const int currentIndex=playList->currentIndex();
+        const int nextIndex=currentIndex<0
+                                ? 0
+                                : (currentIndex+1)%playList->mediaCount();
+        playList->setCurrentIndex(nextIndex);
+        return;
+    }
+
     playList->next();
 }
 
@@ -364,6 +462,160 @@ void Widget::onPlaybackModeChanged(QMediaPlaylist::PlaybackMode playbackMode)
     else{
         qDebug()<<"暂不⽀持该模式";
     }
+}
+
+void Widget::onPlayAll(PageType pageType)
+{
+    CommonPage *page=nullptr;
+    switch (pageType) {
+    case PageType::LIKE_PAGE:
+    {        page=ui->likePage;
+        break;
+    }
+    case PageType::LOCAL_PAGE:{
+        page=ui->localPage;
+        break;
+    }
+    case PageType::HISTORY_PAGE:
+    {
+        page=ui->recentPage;
+        break;
+    }
+    default:
+        qDebug()<<"等待扩展";
+    }
+    playAllOfCommonpage(page,0);
+}
+
+void Widget::playAllOfCommonpage(CommonPage *commonpage, int index)
+{
+    curpage=commonpage;
+    // 播放page所在所有的音乐
+    //将播放列表清空
+    playList->clear();
+    // 将当前页面歌曲添加到播放列表
+    commonpage->addMusicToPlayer(musicList,playList);
+    // 设置当前播放列表的索引
+    playList->setCurrentIndex(index);
+
+    player->play();
+}
+
+void Widget::playMusicByIndex(CommonPage *page, int index)
+{
+    playAllOfCommonpage(page,index);
+}
+
+void Widget::onCurrentIndexChanged(int index)
+{
+    if(index<0 || curpage==nullptr)
+    {
+        return;
+    }
+
+    // 音乐乐的id都在commonPage中的musicListOfPage中存储着
+    const QString musicId =curpage->getMusicIdByIndex(index);
+
+    if(musicId.isEmpty())
+    {
+        return;
+    }
+
+    auto it=musicList.findMusicById(musicId);
+
+    if(it !=musicList.end())
+    {
+        currentMusicId=musicId;
+
+        // 将该音乐设置为历史播放记录
+        it->setIsHistory(true);
+
+        // 元数据是异步解析的，先使用Music对象中已有的信息。
+        ui->musicName->setText(it->getMusicName());
+        ui->musicSinger->setText(it->getSingerName());
+
+        // 切歌时先显示默认封面，解析到内嵌封面后再替换。
+        const QPixmap defaultCover(":/images/default_cover.png");
+        setCurrentMusicCover(defaultCover);
+        curpage->setImageLabel(defaultCover);
+    }
+    ui->recentPage->reFresh(musicList);
+
+}
+
+void Widget::onMetaDataAvailableChanged(bool available)
+{
+    if(!available)
+    {
+        return;
+    }
+
+    qDebug()<<"歌曲切换，元数据读取完成";
+
+    QString musicName=player->metaData(QMediaMetaData::Title).toString();
+
+    const QVariant authorData=player->metaData(QMediaMetaData::Author);
+    QString singer=authorData.toStringList().join(",");
+    if(singer.isEmpty())
+    {
+        singer=authorData.toString();
+    }
+
+    // 元数据缺少名称或歌手时，使用Music对象中保存的备用信息。
+    auto it=musicList.findMusicById(currentMusicId);
+    if(it!=musicList.end())
+    {
+        if(musicName.isEmpty())
+        {
+            musicName=it->getMusicName();
+        }
+        if(singer.isEmpty())
+        {
+            singer=it->getSingerName();
+        }
+    }
+
+    ui->musicName->setText(musicName);
+    ui->musicSinger->setText(singer);
+
+    QPixmap coverPixmap;
+    const QVariant coverData=player->metaData(QMediaMetaData::ThumbnailImage);
+    if(coverData.isValid())
+    {
+        const QImage coverImage=coverData.value<QImage>();
+        if(!coverImage.isNull())
+        {
+            coverPixmap=QPixmap::fromImage(coverImage);
+        }
+    }
+
+    // 歌曲没有内嵌封面时使用默认封面。
+    if(coverPixmap.isNull())
+    {
+        coverPixmap.load(":/images/default_cover.png");
+    }
+
+    setCurrentMusicCover(coverPixmap);
+
+    if(curpage!=nullptr)
+    {
+        curpage->setImageLabel(coverPixmap);
+    }
+}
+
+void Widget::setMusicSilence(bool isMuted)
+{
+    player->setMuted(isMuted);
+}
+
+void Widget::setPlayerVolume(int vomume)
+{
+    player->setVolume(vomume);
+}
+
+void Widget::onDurationChanged(qint64 duration)
+{
+
 }
 
 void Widget::onUpdateLikeMusic(bool isLike, QString musicId)
