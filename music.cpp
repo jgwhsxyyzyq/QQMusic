@@ -1,5 +1,6 @@
 #include "music.h"
 #include <QFileInfo>
+#include <QDir>
 
 Music::Music(const QUrl &url)
 : isLike(false)
@@ -92,6 +93,13 @@ QString Music::getMusicId()
     return musicId;
 }
 
+QString Music::getLrcFilePath() const
+{
+    const QFileInfo musicFile(musicUrl.toLocalFile());
+    return QDir(musicFile.absolutePath())
+        .filePath(musicFile.completeBaseName()+QStringLiteral(".lrc"));
+}
+
 void Music::parseMediaMetaData()
 {
 
@@ -144,4 +152,3 @@ void Music::parseMediaMetaData()
     }
 
 }
-

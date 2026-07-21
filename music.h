@@ -63,6 +63,8 @@ public:
     // 获取歌曲的唯一标识。
     QString getMusicId();
 
+    QString getLrcFilePath() const;
+
 
 
 private:

@@ -39,11 +39,15 @@ void Widget::initUI()
     //设置背景透明
     this->setAttribute(Qt::WA_TranslucentBackground);
 
-    QGraphicsDropShadowEffect *shadowEffect =new QGraphicsDropShadowEffect(this);
+    // 顶层窗口是透明分层窗口，不能直接给它添加会向四周越界绘制的阴影。
+    // 给内部背景添加阴影，并在外层布局中预留阴影空间，可避免 Windows
+    // 出现 UpdateLayeredWindowIndirect 的负数脏区域错误。
+    ui->horizontalLayout_2->setContentsMargins(10,10,10,10);
+    QGraphicsDropShadowEffect *shadowEffect =new QGraphicsDropShadowEffect(ui->background);
     shadowEffect->setBlurRadius(10);//设置模糊半径
     shadowEffect->setOffset(0,0);//设置阴影偏移
     shadowEffect->setColor(QColor(0,0,0));//阴影颜色
-   this->setGraphicsEffect(shadowEffect);
+    ui->background->setGraphicsEffect(shadowEffect);
 
 
    //设置BodyLeft中的btFrom
@@ -85,6 +89,10 @@ void Widget::initUI()
     volumeTool = new VolumeTool(this);
 
 
+    // 歌词页只覆盖真正的主界面内容，不覆盖外围透明阴影区域。
+    lrcPage=new LrcPage(ui->background);
+    lrcPage->setGeometry(ui->background->rect());
+    lrcPage->hide();
 }
 QJsonArray Widget::randomPiction()
     {
@@ -161,6 +169,17 @@ void Widget::mouseMoveEvent(QMouseEvent *event)
 
 }
 
+void Widget::resizeEvent(QResizeEvent *event)
+{
+    QWidget::resizeEvent(event);
+
+    // 主窗口尺寸变化后，歌词页始终与内部背景保持完全一致。
+    if(lrcPage)
+    {
+        lrcPage->setGeometry(ui->background->rect());
+    }
+}
+
 void Widget::connectSignalAdnSlot()//关联信号槽
 {
     connect(ui->rec,&BtForm::click,this,&Widget::onBtFormClick);
@@ -200,6 +219,11 @@ void Widget::connectSignalAdnSlot()//关联信号槽
 
       //设置音量大小
       connect(volumeTool,&VolumeTool::setMusicVolume,this,&Widget::setPlayerVolume);
+
+
+      // 歌词按钮点击信号和槽函数
+      connect(ui->lrcWord,&QPushButton::clicked,this,&Widget::onLrcWordClicked);
+
 }
 
 void Widget::initPlayer()
@@ -231,6 +255,7 @@ void Widget::initPlayer()
     connect(player,&QMediaPlayer::positionChanged,this,[this](qint64 position)
             {
         ui->processBar->setProgress(position,player->duration());
+        lrcPage->updateLyric(position);
     });
 
     // 切换歌曲或媒体加载完成时，使用新的总时长刷新进度条。
@@ -506,7 +531,7 @@ void Widget::playMusicByIndex(CommonPage *page, int index)
     playAllOfCommonpage(page,index);
 }
 
-void Widget::onCurrentIndexChanged(int index)
+    void Widget::onCurrentIndexChanged(int index)
 {
     if(index<0 || curpage==nullptr)
     {
@@ -533,6 +558,10 @@ void Widget::onCurrentIndexChanged(int index)
         // 元数据是异步解析的，先使用Music对象中已有的信息。
         ui->musicName->setText(it->getMusicName());
         ui->musicSinger->setText(it->getSingerName());
+
+        // 加载与音乐文件同目录、同名的.lrc歌词文件。
+        lrcPage->setMusicInfo(it->getMusicName(),it->getSingerName());
+        lrcPage->parseLrc(it->getLrcFilePath());
 
         // 切歌时先显示默认封面，解析到内嵌封面后再替换。
         const QPixmap defaultCover(":/images/default_cover.png");
@@ -577,6 +606,7 @@ void Widget::onMetaDataAvailableChanged(bool available)
 
     ui->musicName->setText(musicName);
     ui->musicSinger->setText(singer);
+    lrcPage->setMusicInfo(musicName,singer);
 
     QPixmap coverPixmap;
     const QVariant coverData=player->metaData(QMediaMetaData::ThumbnailImage);
@@ -615,7 +645,18 @@ void Widget::setPlayerVolume(int vomume)
 
 void Widget::onDurationChanged(qint64 duration)
 {
+    ui->totalTime->setText(QString("%1:%2").arg(duration/1000/60, 2, 10,
+                                                QChar('0'))
+                            .arg(duration/1000%60,2,10,
+                                  QChar('0')));
+}
 
+void Widget::onLrcWordClicked()
+{
+    // 全尺寸背景图逐帧移动会让透明窗口频繁重绘，直接显示更加流畅。
+    lrcPage->setGeometry(ui->background->rect());
+    lrcPage->show();
+    lrcPage->raise();
 }
 
 void Widget::onUpdateLikeMusic(bool isLike, QString musicId)

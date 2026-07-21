@@ -10,6 +10,7 @@
 #include <QJsonArray>
 #include <QMediaPlayer>
 #include "commonpage.h"
+#include "lrcpage.h"
 QT_BEGIN_NAMESPACE
 namespace Ui {
 class Widget;
@@ -56,9 +57,15 @@ public:
 
     // 播放位置改变，即持续播放时间改变
     void onPositionChanged(qint64 duration);
+
+// 歌词按钮槽函数
+    void onLrcWordClicked();
+
+
 protected:
     void mousePressEvent(QMouseEvent*event)override;
-     void mouseMoveEvent(QMouseEvent*event)override;
+    void mouseMoveEvent(QMouseEvent*event)override;
+    void resizeEvent(QResizeEvent *event) override;
     void connectSignalAdnSlot();
 
 
@@ -89,6 +96,9 @@ private:
     QString currentMusicId;
 
     CommonPage*curpage;
+
+    //歌词页面相关
+    LrcPage* lrcPage=nullptr;
 
 
 };
