@@ -11,6 +11,7 @@ class MusicList
 public:
     MusicList();
     void addMusicByUrl(const QList<QUrl>& urls);
+    void addMusic(const Music &music);
     typedef typename QVector<Music>::iterator iterator;
     iterator begin();
     iterator end();

@@ -20,8 +20,9 @@ public:
     void clearBg();
 
          // 获取id
-     int getId();
+    int getId();
     void animalShow();
+    void showAnimal(bool isShow);
 
 
 protected:

@@ -4,6 +4,7 @@
 #include <QWidget>
 #include <QMediaPlaylist>
 #include <QPixmap>
+#include <algorithm>
 namespace Ui {
 class CommonPage;
 }

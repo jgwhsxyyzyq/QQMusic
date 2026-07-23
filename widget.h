@@ -11,6 +11,8 @@
 #include <QMediaPlayer>
 #include "commonpage.h"
 #include "lrcpage.h"
+#include <QSqlDatabase>
+#include "musicdatabase.h"
 QT_BEGIN_NAMESPACE
 namespace Ui {
 class Widget;
@@ -56,7 +58,7 @@ public:
     void onDurationChanged(qint64 duration);
 
     // 播放位置改变，即持续播放时间改变
-    void onPositionChanged(qint64 duration);
+    void onPositionChanged(qint64 position);
 
 // 歌词按钮槽函数
     void onLrcWordClicked();
@@ -73,6 +75,8 @@ protected:
 
 private slots:
     void on_quit_clicked();
+    void on_min_clicked();
+    void quitQQMusic();
     void onBtFormClick(int pageid);
     void onUpdateLikeMusic(bool isLike, QString musicId);
 
@@ -99,6 +103,10 @@ private:
 
     //歌词页面相关
     LrcPage* lrcPage=nullptr;
+
+     MusicDatabase musicDatabase;
+
+
 
 
 };

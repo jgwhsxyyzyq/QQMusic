@@ -1,6 +1,7 @@
 #include "commonpage.h"
 #include "ui_commonpage.h"
 #include "listitembox.h"
+#include <algorithm>
 CommonPage::CommonPage(QWidget *parent)
     : QWidget(parent)
     , ui(new Ui::CommonPage)
@@ -80,34 +81,19 @@ void CommonPage::reFresh(MusicList &musicList)
 
 void CommonPage::addMusicToPlayer(MusicList &musicList, QMediaPlaylist *playList)
 {
-    for(auto music:musicList)
+    // 播放列表必须与页面显示的歌曲ID顺序一致。
+    // 特别是最近播放页面经过时间排序后，不能再按原始MusicList顺序添加媒体。
+    addMusicToMusicPage(musicList);
+
+    for(const QString &musicId : musicListOfPage)
     {
-        switch (pageType) {
-        case LOCAL_PAGE:
+        auto it=musicList.findMusicById(musicId);
+        if(it==musicList.end())
         {
-            playList->addMedia(music.getMusicUrl());
-            break;
-        }
-        case LIKE_PAGE:
-        {
-            if(music.getIsLike())
-            {
-                playList->addMedia(music.getMusicUrl());
-            }
-            break;
-        }
-        case HISTORY_PAGE:
-        {
-            if(music.getIsHistory())
-            {
-                playList->addMedia(music.getMusicUrl());
-            }
-            break;
+            continue;
         }
 
-        default:
-            break;
-        }
+        playList->addMedia(it->getMusicUrl());
     }
 }
 
@@ -135,6 +121,33 @@ void CommonPage::addMusicToMusicPage(MusicList &musicList)
 {
     //清空旧内容
     musicListOfPage.clear();
+
+    // 最近播放页面单独按照最后播放时间排序，避免改变本地音乐和收藏页面的顺序。
+    if(pageType==HISTORY_PAGE)
+    {
+        QVector<const Music *> historyMusic;
+        for(const Music &music : musicList)
+        {
+            if(music.getIsHistory())
+            {
+                historyMusic.push_back(&music);
+            }
+        }
+
+        std::sort(historyMusic.begin(),
+                  historyMusic.end(),
+                  [](const Music *left, const Music *right)
+        {
+            return left->getLastPlayTime()>right->getLastPlayTime();
+        });
+
+        for(const Music *music : historyMusic)
+        {
+            musicListOfPage.push_back(music->getMusicId());
+        }
+        return;
+    }
+
     for(auto &music : musicList)
     {
         switch (pageType) {
@@ -153,13 +166,7 @@ void CommonPage::addMusicToMusicPage(MusicList &musicList)
             }
 
         case HISTORY_PAGE:
-            {
-                if(music.getIsHistory())
-            {
-                musicListOfPage.push_back(music.getMusicId());
-                }
-
-            }
+            break;
         default:
             break;
         }

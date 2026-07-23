@@ -2,6 +2,10 @@ QT += widgets
 QT += core gui widgets
 QT += core gui multimedia
 CONFIG += c++17
+QT += sql
+
+# ban qDebug output
+DEFINES += QT_NO_DEBUG_OUTPUT
 
 # You can make your code fail to compile if it uses deprecated APIs.
 # In order to do so, uncomment the following line.
@@ -15,6 +19,7 @@ SOURCES += \
     lrcpage.cpp \
     main.cpp \
     music.cpp \
+    musicdatabase.cpp \
     musiclist.cpp \
     musicslide.cpp \
     recbox.cpp \
@@ -28,6 +33,7 @@ HEADERS += \
     listitembox.h \
     lrcpage.h \
     music.h \
+    musicdatabase.h \
     musiclist.h \
     musicslide.h \
     recbox.h \

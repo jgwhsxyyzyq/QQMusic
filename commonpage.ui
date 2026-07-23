@@ -239,14 +239,14 @@ QScrollBar:vertical{
 
 border:none;
 width:10px;
-background-color:#FFFFFF;
+background-color:#F0F0F0;
 margin:0px,0px,0px,0px;
 }
 
 QScrollBar::handle:vertical{
 
 width:10px;
-background-color:#EFEFEF;
+background-color:#E3E3E3;
 border-radius:5px;
 min-height:20px;
 }</string>

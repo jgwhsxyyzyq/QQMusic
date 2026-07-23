@@ -1437,6 +1437,7 @@ QPushButton:hover
                     <property name="styleSheet">
                      <string notr="true">#lrcWord{
 	border:none;
+	background-image:url(:/images/ci.png);
 	background-repeat:no-repeat;
 	background-position:center center;
 	

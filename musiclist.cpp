@@ -28,6 +28,17 @@ void MusicList::addMusicByUrl(const QList<QUrl> &urls)
     }
 }
 
+void MusicList::addMusic(const Music &music)
+{
+    if(music.getMusicUrl().isEmpty()
+        || containsMusicUrl(music.getMusicUrl()))
+    {
+        return;
+    }
+
+    musicList.push_back(music);
+}
+
 bool MusicList::containsMusicUrl(const QUrl &musicUrl)
 {
     for(Music &music : musicList)

@@ -10,6 +10,9 @@
 #include <QMediaMetaData>
 #include <QImage>
 #include <QPixmap>
+#include <QDateTime>
+#include <QSystemTrayIcon>
+#include <QMenu>
 
 Widget::Widget(QWidget *parent)
     : QWidget(parent)
@@ -20,9 +23,25 @@ Widget::Widget(QWidget *parent)
     initUI();
     initPlayer();
     connectSignalAdnSlot();
+    if(!musicDatabase.initDatabase())
+    {
+        qDebug() << "SQLite数据库初始化失败";
+    }
+    else
+    {
+        const QVector<Music> storedMusic=musicDatabase.loadAllMusic();
+        for(const Music &music : storedMusic)
+        {
+            musicList.addMusic(music);
+        }
 
+        ui->localPage->reFresh(musicList);
+        ui->likePage->reFresh(musicList);
+        ui->recentPage->reFresh(musicList);
 
-
+        playList->clear();
+        ui->localPage->addMusicToPlayer(musicList,playList);
+    }
 }
 
 Widget::~Widget()
@@ -38,6 +57,7 @@ void Widget::initUI()
 
     //设置背景透明
     this->setAttribute(Qt::WA_TranslucentBackground);
+      setWindowIcon(QIcon(":/images/tubiao.png"));// 设置主窗口图标
 
     // 顶层窗口是透明分层窗口，不能直接给它添加会向四周越界绘制的阴影。
     // 给内部背景添加阴影，并在外层布局中预留阴影空间，可避免 Windows
@@ -48,6 +68,36 @@ void Widget::initUI()
     shadowEffect->setOffset(0,0);//设置阴影偏移
     shadowEffect->setColor(QColor(0,0,0));//阴影颜色
     ui->background->setGraphicsEffect(shadowEffect);
+
+    // 创建系统托盘图标。
+    QSystemTrayIcon *trayIcon=new QSystemTrayIcon(this);
+    trayIcon->setIcon(QIcon(":/images/tubiao.png"));
+    trayIcon->setToolTip(QStringLiteral("QQ音乐"));
+
+    // 创建托盘右键菜单。
+    QMenu *trayMenu=new QMenu(this);
+    trayMenu->addAction(QStringLiteral("还原"),
+                        this,
+                        &QWidget::showNormal);
+    trayMenu->addSeparator();
+    trayMenu->addAction(QStringLiteral("退出"),
+                        this,
+                        &Widget::quitQQMusic);
+
+    trayIcon->setContextMenu(trayMenu);
+    connect(trayIcon,
+            &QSystemTrayIcon::activated,
+            this,
+            [this](QSystemTrayIcon::ActivationReason reason)
+    {
+        if(reason==QSystemTrayIcon::DoubleClick)
+        {
+            showNormal();
+            raise();
+            activateWindow();
+        }
+    });
+    trayIcon->show();
 
 
    //设置BodyLeft中的btFrom
@@ -68,7 +118,6 @@ void Widget::initUI()
     ui->recMusicBox->initRecBoxUi(randomPiction(),1);
     ui->supplyMusicBox->initRecBoxUi(randomPiction(),2);
 
-    volumeTool = new VolumeTool(this);
     //设置commonpage的信息
     ui->likePage->setMusicListType(PageType::LIKE_PAGE);
     ui->likePage->setCommonPageUI("我喜欢", ":/images/ilikebg.png");
@@ -93,6 +142,9 @@ void Widget::initUI()
     lrcPage=new LrcPage(ui->background);
     lrcPage->setGeometry(ui->background->rect());
     lrcPage->hide();
+
+
+
 }
 QJsonArray Widget::randomPiction()
     {
@@ -252,17 +304,12 @@ void Widget::initPlayer()
             this,&Widget::onMetaDataAvailableChanged);
 
     // 播放器位置变化时，自动更新底部播放进度条。
-    connect(player,&QMediaPlayer::positionChanged,this,[this](qint64 position)
-            {
-        ui->processBar->setProgress(position,player->duration());
-        lrcPage->updateLyric(position);
-    });
+    connect(player,&QMediaPlayer::positionChanged,
+            this,&Widget::onPositionChanged);
 
     // 切换歌曲或媒体加载完成时，使用新的总时长刷新进度条。
-    connect(player,&QMediaPlayer::durationChanged,this,[this](qint64 duration)
-            {
-        ui->processBar->setProgress(player->position(),duration);
-    });
+    connect(player,&QMediaPlayer::durationChanged,
+            this,&Widget::onDurationChanged);
 
     // 用户拖动完成后，将播放器跳转到对应位置。
     connect(ui->processBar,&MusicSlide::seekRequested,this,[this](double ratio)
@@ -294,7 +341,17 @@ void Widget::onBtFormClick(int pageid)
 }
 void Widget::on_quit_clicked()
 {
-    this->close();
+    // 点击窗口关闭按钮时只隐藏窗口，音乐继续播放。
+    // 用户可以从系统托盘菜单重新显示或真正退出。
+    hide();
+}
+
+void Widget::quitQQMusic()
+{
+    // 当前项目在导入、收藏和播放时已经实时写入SQLite，
+    // 真正退出前只需要关闭数据库连接。
+    musicDatabase.closeDatabase();
+    close();
 }
 
 
@@ -354,18 +411,23 @@ void Widget::on_addLocal_clicked()
     }
 
     musicList.addMusicByUrl(urls);
-    ui->localPage->reFresh(musicList);
+    // 将内存中的歌曲保存到SQLite
+    for(const Music &music : musicList)
+    {
+        if(!musicDatabase.insertMusic(music))
+        {
+        qDebug()<<"歌曲保存到数据库失败："
+                 << music.getMusicName();
+        }
+    }
+    ui->localPage->reFresh(musicList);//更新本地音乐页面
 
     // 根据最新的本地音乐数据重新生成播放列表。
-    // 先清空可以避免多次导入时重复加入已经存在的歌曲。
     playList->clear();
-    ui->localPage->addMusicToPlayer(musicList, playList);
-    if (!playList->isEmpty())
-    {
-        playList->setCurrentIndex(0);
-    }
+    ui->localPage->addMusicToPlayer(musicList,playList);
 
     ui->stackedWidget->setCurrentIndex(4);
+
 }
 
 
@@ -385,6 +447,10 @@ void Widget::onPlayCliked()
     }
     else if(player->state()==QMediaPlayer::StoppedState)
     {
+        if(playList->currentIndex()<0 && playList->mediaCount()>0)
+        {
+            playList->setCurrentIndex(0);
+        }
         player->play();
     }
 }
@@ -531,7 +597,7 @@ void Widget::playMusicByIndex(CommonPage *page, int index)
     playAllOfCommonpage(page,index);
 }
 
-    void Widget::onCurrentIndexChanged(int index)
+void Widget::onCurrentIndexChanged(int index)
 {
     if(index<0 || curpage==nullptr)
     {
@@ -551,9 +617,22 @@ void Widget::playMusicByIndex(CommonPage *page, int index)
     if(it !=musicList.end())
     {
         currentMusicId=musicId;
+        // 获取当前歌曲的播放时间
+        const qint64 playTime =QDateTime::currentMSecsSinceEpoch();
 
         // 将该音乐设置为历史播放记录
         it->setIsHistory(true);
+        it->setLastPlayTime(playTime);
+
+        if(!musicDatabase.updateMusicHistory(
+                musicId,
+                true,
+                playTime
+                //QDateTime::currentMSecsSinceEpoch()
+                ))
+        {
+            qDebug()<<"歌曲历史记录保存失败："<<it->getMusicName();
+        }
 
         // 元数据是异步解析的，先使用Music对象中已有的信息。
         ui->musicName->setText(it->getMusicName());
@@ -645,10 +724,17 @@ void Widget::setPlayerVolume(int vomume)
 
 void Widget::onDurationChanged(qint64 duration)
 {
+    ui->processBar->setProgress(player->position(),duration);
     ui->totalTime->setText(QString("%1:%2").arg(duration/1000/60, 2, 10,
                                                 QChar('0'))
                             .arg(duration/1000%60,2,10,
                                   QChar('0')));
+}
+
+void Widget::onPositionChanged(qint64 position)
+{
+    ui->processBar->setProgress(position,player->duration());
+    lrcPage->updateLyric(position);
 }
 
 void Widget::onLrcWordClicked()
@@ -659,6 +745,8 @@ void Widget::onLrcWordClicked()
     lrcPage->raise();
 }
 
+
+
 void Widget::onUpdateLikeMusic(bool isLike, QString musicId)
 {
     auto it=musicList.findMusicById(musicId);
@@ -666,8 +754,18 @@ void Widget::onUpdateLikeMusic(bool isLike, QString musicId)
     if( it!=musicList.end())
     {
         it->setIsLike(isLike);
+        if(!musicDatabase.updateMusicLike(musicId,isLike))
+        {
+            qDebug()<<"歌曲收藏状态保存失败："<<it->getMusicName();
+        }
     }
     ui->likePage->reFresh(musicList);
      ui->localPage->reFresh(musicList);
      ui->recentPage->reFresh(musicList);
 }
+
+void Widget::on_min_clicked()
+{
+    showMinimized();
+}
+

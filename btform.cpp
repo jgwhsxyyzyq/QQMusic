@@ -71,6 +71,17 @@ void BtForm::animalShow()
     ui->lineBox->show();
 }
 
+void BtForm::showAnimal(bool isShow)
+{
+    if(isShow)
+    {
+        ui->lineBox->show();
+    }
+    else{
+        ui->lineBox->hide();
+    }
+}
+
 void BtForm::mousePressEvent(QMouseEvent *event)
 {
     (void)event;

@@ -4,7 +4,6 @@
 #include <QUrl>
 #include <QString>
 #include <QMediaPlayer>
-#include <QCoreApplication>
 #include <QUuid>
 class Music
 {
@@ -40,31 +39,34 @@ public:
     void setMusicId(const QString& musicId);
 
     // 获取歌曲是否已被收藏。
-    bool getIsLike();
+    bool getIsLike() const;
 
     // 获取歌曲是否进入播放历史。
-    bool getIsHistory();
+    bool getIsHistory() const;
 
     // 获取歌曲名称。
-    QString getMusicName();
+    QString getMusicName() const;
 
     // 获取歌手名称。
-    QString getSingerName();
+    QString getSingerName() const;
 
     // 获取专辑名称。
-    QString getAlbumName();
+    QString getAlbumName() const;
 
     // 获取歌曲总时长，单位通常为毫秒。
-    qint64 getDuration();
+    qint64 getDuration() const;
 
     // 获取歌曲文件的 URL。
-    QUrl getMusicUrl();
+    QUrl getMusicUrl() const;
 
     // 获取歌曲的唯一标识。
-    QString getMusicId();
+    QString getMusicId() const;
 
     QString getLrcFilePath() const;
 
+    void setLastPlayTime(qint64 lastPlayTime);
+
+    qint64 getLastPlayTime() const;
 
 
 private:
@@ -91,6 +93,8 @@ private:
 
     // 歌曲文件地址。
     QUrl musicUrl;
+
+    qint64 lastPlayTime;
 private:
     void parseMediaMetaData();
 
